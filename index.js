@@ -43,8 +43,8 @@ const LogSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model("User", UserSchema);
-const Log = mongoose.model("User", LogSchema);
-const Exercise = mongoose.model("User", ExerciseSchema);
+const Log = mongoose.model("Log", LogSchema);
+const Exercise = mongoose.model("Exercise", ExerciseSchema);
 
 const createUserObject = (username, done) => {
   User.create(
