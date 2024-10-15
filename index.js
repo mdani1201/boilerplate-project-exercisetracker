@@ -47,7 +47,7 @@ const Log = mongoose.model("User", LogSchema);
 const Exercise = mongoose.model("User", ExerciseSchema);
 
 const createUserObject = (username, done) => {
-  Url.create(
+  User.create(
     {
       username: username,
       _id: uuidv4()
@@ -63,7 +63,7 @@ const createUserObject = (username, done) => {
 };
 
 app.post("/api/users", (req, res) => {
-  createUserObject(req., (err, data) => {
+  createUserObject(req.body.username, (err, data) => {
     if (err) return res.json({ error: err });
     res.json({
       username: data.username,
