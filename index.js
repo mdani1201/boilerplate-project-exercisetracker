@@ -46,6 +46,7 @@ const createUserObject = (username, done) => {
     }
   );
 };
+
 const deleteUser = (username, done) => {
   User.remove({ username: username }, (err, data) => {
     if (err) {
@@ -103,35 +104,47 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
     date: dateString,
   });
   await exercise.save();
+
   const exerciseObject = await Exercise.findById({
     _id: exercise._id,
   });
   const { username, _id } = user;
   const { description, duration, date } = exerciseObject;
   const responseObject = { username, description, duration, date, _id };
-
   res.send(responseObject);
 });
 
 app.get("/api/users/:_id/logs", async (req, res) => {
-  const id = req.params._id.toString();
+  const id = req.params._id;
   const { from, to, limit } = req.query;
-  const fromDate = from ? new Date(from) : new Date(0);
-  const toDate = to ? new Date(to) : new Date();
-  const limitLog = limit ? parseInt(limit, 10) : 10000;
+  const fromDate = from
+    ? new Date(from).toISOString()
+    : new Date(0).toISOString();
+  const toDate = to ? new Date(to).toISOString() : new Date().toISOString();
+  const limitLog = limit ? parseInt(limit) : 10000;
+  console.log(id, fromDate, toDate, limitLog);
 
   try {
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).send({ message: "User not found." });
     }
+    const userLog = await Exercise.find({
+      userId: id,
+    });
 
-    const exerciseList = await Exercise.find({ userId: id })
-      .where("date")
-      .gte(fromDate)
-      .lte(toDate)
-      .limit(limitLog)
-      .exec();
+    const exerciseList = [];
+    userLog.forEach((ex) => {
+      const { date } = ex;
+      const dateConv = new Date(date).toISOString();
+      if (dateConv >= fromDate && dateConv <= toDate) {
+        if (limitLog > exerciseList.length) {
+          exerciseList.push(ex);
+        } else {
+          return;
+        }
+      }
+    });
 
     const { username, _id } = user;
     const displayExerciseList = exerciseList.map((exercise) => {
