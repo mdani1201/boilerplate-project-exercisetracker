@@ -46,6 +46,22 @@ const createUserObject = (username, done) => {
     }
   );
 };
+const deleteUser = (username, done) => {
+  User.remove({ username: username }, (err, data) => {
+    if (err) {
+      return done(err);
+    } else {
+      done(null, data);
+    }
+  });
+};
+
+app.post("/api/:username/delete", (req, res) => {
+  deleteUser(req.params.username, (err, data) => {
+    if (err) console.log(err);
+    res.send(data);
+  });
+});
 
 app.post("/api/users", (req, res) => {
   createUserObject(req.body.username, (err, data) => {
@@ -53,7 +69,7 @@ app.post("/api/users", (req, res) => {
       console.log(err);
       return res.json({ error: err });
     }
-    res.send({ username: data.username });
+    res.send({ username: data.username, _id: data._id });
   });
 });
 
@@ -64,7 +80,8 @@ app.get("/api/users", (req, res) => {
       res.json({ error: err });
     } else {
       data.forEach((user) => {
-        dataArray.push(`${user.username} ${user._id}`);
+        const { username, _id } = user;
+        dataArray.push({ username, _id });
       });
       res.send(dataArray);
     }
@@ -97,31 +114,39 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
 });
 
 app.get("/api/users/:_id/logs", async (req, res) => {
-  id = req.params._id.toString();
+  const id = req.params._id.toString();
   const { from, to, limit } = req.query;
   const fromDate = from ? new Date(from) : new Date(0);
   const toDate = to ? new Date(to) : new Date();
-  const limitLog = limit ? parseInt(limit) : 10000;
+  const limitLog = limit ? parseInt(limit, 10) : 10000;
 
-  const user = await User.findById(id);
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).send({ message: "User not found." });
+    }
 
-  const exerciseList = await Exercise.find({ userId: id })
-    .where("date")
-    .gte(fromDate)
-    .lte(toDate)
-    .limit(limitLog)
-    .exec();
+    const exerciseList = await Exercise.find({ userId: id })
+      .where("date")
+      .gte(fromDate)
+      .lte(toDate)
+      .limit(limitLog)
+      .exec();
 
-  const { username, _id } = user;
-  const displayExerciseList = [];
+    const { username, _id } = user;
+    const displayExerciseList = exerciseList.map((exercise) => {
+      const { description, duration, date } = exercise;
+      return { description, duration, date };
+    });
 
-  exerciseList.forEach((exercise) => {
-    const { description, duration, date } = exercise;
-    displayExerciseList.push({ description, duration, date });
-  });
-  const count = exerciseList.length;
-  const completeLog = { username, count: count, _id, log: displayExerciseList };
-  res.send(completeLog);
+    const count = exerciseList.length;
+    const completeLog = { username, count, _id, log: displayExerciseList };
+    console.log(completeLog);
+    res.send(completeLog);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Server error." });
+  }
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
