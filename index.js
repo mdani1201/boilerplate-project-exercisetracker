@@ -84,8 +84,8 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
     date: dateString,
   });
   await exercise.save();
-  const exerciseObject = await Exercise.findOne({
-    description: req.body.description,
+  const exerciseObject = await Exercise.findById({
+    _id: exercise._id
   });
   const { username, _id } = user;
   const { description, duration, date } = exerciseObject;
@@ -93,6 +93,8 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
 
   res.send(responseObject);
 });
+
+//app.get("/api/users/:_id/logs", (req, res) => {})
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log("Your app is listening on port " + listener.address().port);
