@@ -3,7 +3,6 @@ const app = express();
 const cors = require("cors");
 require("dotenv").config();
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require('uuid');
 const bodyParser = require("body-parser");
 
 mongoose.connect(process.env.MONGO_URI, {
@@ -13,44 +12,29 @@ mongoose.connect(process.env.MONGO_URI, {
 
 app.use(cors());
 app.use(express.static("public"));
-app.get("/", (req, res) => {res.sendFile(__dirname + "/views/index.html");});
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/views/index.html");
+});
 app.use("/", bodyParser.urlencoded({ extended: false }));
 
 const ExerciseSchema = new mongoose.Schema({
-  username: String,
   description: String,
   duration: Number,
-  date: Date,
-  _id: String,
+  date: String,
 });
 
 const UserSchema = new mongoose.Schema({
-  username: String,
-  _id: String,
-});
-
-const LogSchema = new mongoose.Schema({
-  username: String,
-  count: Number,
-  _id: String,
-  log: [
-    {
-      description: String,
-      duration: Number,
-      date: Date,
-    },
-  ],
+  username: { type: String, unique: true },
 });
 
 const User = mongoose.model("User", UserSchema);
-const Log = mongoose.model("Log", LogSchema);
+
 const Exercise = mongoose.model("Exercise", ExerciseSchema);
 
 const createUserObject = (username, done) => {
   User.create(
     {
       username: username,
-      _id: uuidv4()
     },
     (err, data) => {
       if (err) {
@@ -64,12 +48,50 @@ const createUserObject = (username, done) => {
 
 app.post("/api/users", (req, res) => {
   createUserObject(req.body.username, (err, data) => {
-    if (err) return res.json({ error: err });
-    res.json({
-      username: data.username,
-      _id: data._id
-    });
+    if (err) {
+      console.log(err);
+      return res.json({ error: err });
+    }
+    res.send({ username: data.username });
   });
+});
+
+app.get("/api/users", (req, res) => {
+  User.find((err, data) => {
+    var dataArray = [];
+    if (err) {
+      res.json({ error: err });
+    } else {
+      data.forEach((user) => {
+        dataArray.push(`${user.username} ${user._id}`);
+      });
+      res.send(dataArray);
+    }
+  });
+});
+
+app.post("/api/users/:_id/exercises", async (req, res) => {
+  id = req.params._id.toString();
+  var user = await User.findById(id);
+  if (!req.body.date) {
+    dateString = new Date().toDateString();
+  } else {
+    dateString = req.body.date.toDateString();
+  }
+  const exercise = await new Exercise({
+    description: req.body.description,
+    duration: req.body.duration,
+    date: dateString,
+  });
+  await exercise.save();
+  const exerciseObject = await Exercise.findOne({
+    description: req.body.description,
+  });
+  const { username, _id } = user;
+  const { description, duration, date } = exerciseObject;
+  const responseObject = { username, description, duration, date, _id };
+
+  res.send(responseObject);
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
