@@ -18,6 +18,7 @@ app.get("/", (req, res) => {
 app.use("/", bodyParser.urlencoded({ extended: false }));
 
 const ExerciseSchema = new mongoose.Schema({
+  userId: String,
   description: String,
   duration: Number,
   date: String,
@@ -76,16 +77,17 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
   if (!req.body.date) {
     dateString = new Date().toDateString();
   } else {
-    dateString = req.body.date.toDateString();
+    dateString = new Date(req.body.date).toDateString();
   }
   const exercise = await new Exercise({
+    userId: user._id,
     description: req.body.description,
     duration: req.body.duration,
     date: dateString,
   });
   await exercise.save();
   const exerciseObject = await Exercise.findById({
-    _id: exercise._id
+    _id: exercise._id,
   });
   const { username, _id } = user;
   const { description, duration, date } = exerciseObject;
@@ -94,7 +96,33 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
   res.send(responseObject);
 });
 
-//app.get("/api/users/:_id/logs", (req, res) => {})
+app.get("/api/users/:_id/logs", async (req, res) => {
+  id = req.params._id.toString();
+  const { from, to, limit } = req.query;
+  const fromDate = from ? new Date(from) : new Date(0);
+  const toDate = to ? new Date(to) : new Date();
+  const limitLog = limit ? parseInt(limit) : 10000;
+
+  const user = await User.findById(id);
+
+  const exerciseList = await Exercise.find({ userId: id })
+    .where("date")
+    .gte(fromDate)
+    .lte(toDate)
+    .limit(limitLog)
+    .exec();
+
+  const { username, _id } = user;
+  const displayExerciseList = [];
+
+  exerciseList.forEach((exercise) => {
+    const { description, duration, date } = exercise;
+    displayExerciseList.push({ description, duration, date });
+  });
+  const count = exerciseList.length;
+  const completeLog = { username, count: count, _id, log: displayExerciseList };
+  res.send(completeLog);
+});
 
 const listener = app.listen(process.env.PORT || 3000, () => {
   console.log("Your app is listening on port " + listener.address().port);
